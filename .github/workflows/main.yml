@@ -1,0 +1,142 @@
+name: CloudflareST优选IP
+
+on:
+  schedule:
+    - cron: '*/20 * * * *'  # 每20分钟运行一次
+  push:
+    branches:
+      - main
+
+jobs:
+  IP:
+    runs-on: ubuntu-latest  # GitHub Actions中的ubuntu环境可以用作Debian环境
+
+    env:
+      API_KEY: ${{ secrets.API_KEY }}
+      EMAIL: ${{ secrets.EMAIL }}
+      RECORD_NAME: ${{ secrets.RECORD_NAME }}
+      ZONE_ID: ${{ secrets.ZONE_ID }}
+      DOMAIN: ${{ secrets.DOMAIN }}
+      BLUE: "\e[34m\e[1m"
+      GREEN: "\e[32m\e[1m"
+      RED: "\e[31m\e[1m"
+      YELLOW: "\e[33m\e[1m"
+      GREY: "\e[36m\e[1m"
+      PURPLE: "\e[35m\e[1m"
+      WHITE: "\e[37m\e[1m"
+      GREENBG: "\e[43;42m\e[1m"
+      REDBG: "\e[37;41m\e[1m"
+      YELLOWBG: "\e[33m\e[1m\e[5m"
+      SCRIPT_DIR: "$GITHUB_WORKSPACE"
+      BASH_FILE: "$GITHUB_WORKSPACE/cdn"
+      RESULT_CSV: "$GITHUB_WORKSPACE/cdn/result.csv"
+      CloudflareST_IP_FILE: "$GITHUB_WORKSPACE/cdn/ip.txt"
+      CloudflareST_FILE: "$GITHUB_WORKSPACE/cdn/CloudflareST"
+      CloudflareST_LINE: "https://github.com/XIU2/CloudflareSpeedTest/releases/download/v2.2.5/CloudflareST_linux_amd64.tar.gz"
+      downloaded_file: "$GITHUB_WORKSPACE/cdn/CloudflareST.tar.gz"
+      CloudflareST_IP_LINE: "https://www.cloudflare.com/ips-v4"
+    
+    steps:
+    - name: 检出 仓库
+      uses: actions/checkout@v4
+
+    - name: 设置 bash 环境
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl jq wget
+        mkdir -p "$BASH_FILE"
+        chmod -R 777 "$BASH_FILE"
+
+    - name: 获取 公网 IP
+      run: |
+          ipinfo=$(curl -s ipinfo.io)
+          publicip=$(echo "$ipinfo" | jq -r '.ip')
+          country=$(echo "$ipinfo" | jq -r '.country')
+          echo -e "${GREY}网络国家: $country${GREY}"
+          echo -e "${PURPLE}公网 IP: $publicip${PURPLE}"
+          network_status=$(curl -s -o /dev/null --connect-timeout 2 -w "%{http_code}" https://www.google.com/)
+          if [ "$network_status" = "200" ]; then
+          echo -e "${GREEN}网络状态: 科学冲浪${GREEN}"
+          else
+          echo -e "${RED}网络状态: 闭关锁国${RED}"
+          exit 1
+          fi
+
+    - name: 下载 IP 文件 
+      run: |
+        curl --connect-timeout 30 -o "$CloudflareST_IP_FILE" "$CloudflareST_IP_LINE" > /dev/null
+        echo -e "${GREY}CloudflareST ip.txt 下载完成...${GREY}"
+        filtered=$(grep -Eo '\b([0-9]{1,3}\.){3}[0-9]{1,3}(\/[0-9]{1,2})?\b' "$CloudflareST_IP_FILE")
+        echo "$filtered" > "$CloudflareST_IP_FILE"
+        echo -e "${GREEN}已提取的IP地址已保存到 CloudflareST ip.txt 文件中。${GREEN}"
+
+
+    - name: 下载 CloudflareST 程序
+      run: |
+        wget --timeout=30 -O "$downloaded_file" "$CloudflareST_LINE" > /dev/null
+        tar -xzf "$downloaded_file" -C "$SCRIPT_DIR/cdn" CloudflareST
+        rm "$downloaded_file"
+        chmod +x "$CloudflareST_FILE"
+        echo -e "${GREY}CloudflareST 下载,解压并赋予执行权限完成完成。${GREY}"
+
+    - name: 运行 CloudflareST 程序
+      run: |
+        $SCRIPT_DIR/cdn/CloudflareST -n 1000 -t 10 -tll 1 -tlr 0.2 -sl 15 -p 10 -tp 443 -url https://cdn.cloudflare.steamstatic.com/steam/apps/256843155/movie_max.mp4 -f "$SCRIPT_DIR/cdn/ip.txt" -o "$SCRIPT_DIR/cdn/result.csv" /dev/null
+
+    - name: 提取 优选IP信息
+      run: |
+        IP=$(cat $SCRIPT_DIR/cdn/result.csv | sed -n '2p' | egrep -o "([0-9]{1,3}\.){3}[0-9]{1,3}" | grep -wv 255)
+        echo -e "${PURPLE}优选IP $IP${PURPLE}"
+        speed=$(cat $SCRIPT_DIR/cdn/result.csv | cut -d , -f 6 | sed -n 2p)
+        echo -e "${GREEN}实测带宽 $speed Mb/s${GREEN}"
+        time=$(cat $SCRIPT_DIR/cdn/result.csv | cut -d , -f 5 | sed -n 2p)
+        echo -e "${BLUE}网络延迟 $time ms${BLUE}"
+
+    - name: 推送 优选IP 信息到域名
+      run: |
+        DOMAIN=$(echo "$RECORD_NAME" | rev | cut -d"." -f1-2 | rev)
+        ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN&status=active" \
+             -H "X-Auth-Email: ${{ secrets.EMAIL }}" \
+             -H "X-Auth-Key: ${{ secrets.API_KEY }}" \
+             -H "Content-Type: application/json" | jq -r '.result[0].id')
+
+        if [ -z "$ZONE_ID" ]; then
+          echo -e "${RED}未能找到与 $RECORD_NAME 对应的 Zone ID。${RED}"
+          exit 1
+        fi
+
+        CURRENT_IP=$(cat $SCRIPT_DIR/cdn/result.csv | sed -n '2p' | egrep -o "([0-9]{1,3}\.){3}[0-9]{1,3}" | grep -wv 255)
+        RECORD_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?type=A&name=$RECORD_NAME" \
+             -H "X-Auth-Email: ${{ secrets.EMAIL }}" \
+             -H "X-Auth-Key: ${{ secrets.API_KEY }}" \
+             -H "Content-Type: application/json" | jq -r '.result[0].id')
+
+        UPDATE_RESULT=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$RECORD_ID" \
+             -H "X-Auth-Email: ${{ secrets.EMAIL }}" \
+             -H "X-Auth-Key: ${{ secrets.API_KEY }}" \
+             -H "Content-Type: application/json" \
+             --data "{\"type\":\"A\",\"name\":\"$RECORD_NAME\",\"content\":\"$CURRENT_IP\"}")
+
+        if [[ $UPDATE_RESULT == *"\"success\":true"* ]]; then
+          echo -e "${GREEN}DNS记录已更新。新IP地址:$CURRENT_IP${GREEN}"
+        else
+          echo -e "${RED}DNS记录更新失败${RED}"
+          exit 1
+        fi
+
+    - name: 清理 Cloudflare 缓存
+      run: |
+        echo -e "${GREY}开始清理 Cloudflare 缓存...${GREY}"
+
+        cache=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/purge_cache" \
+             -H "X-Auth-Email: ${{ secrets.EMAIL }}" \
+             -H "X-Auth-Key: ${{ secrets.API_KEY }}" \
+             -H "Content-Type: application/json"      \
+             --data '{"purge_everything":true}' | jq -r '.success')
+
+        if [ "$cache" = "true" ]; then
+          echo -e "${GREEN}Cloudflare 缓存清理成功.${GREEN}"
+        else
+          echo -e "${RED}Cloudflare 缓存清理失败.${RED}"
+          exit 1
+        fi

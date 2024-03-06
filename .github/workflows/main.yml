@@ -3,7 +3,9 @@ name: CloudflareST优选IP
 on:
   schedule:
     - cron: '*/59 * * * *'  # 每59分钟运行一次
-
+  push:
+    branches:
+      - main
 jobs:
   IP:
     runs-on: debian-latest  # GitHub Actions中的ubuntu环境

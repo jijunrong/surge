@@ -2,7 +2,7 @@ name: CloudflareST优选IP
 
 on:
   schedule:
-    - cron: '*/59 * * * *'  # 每59分钟运行一次
+    - cron: '0 */6 * * *'  # 每6小时运行一次
   push:
     branches:
       - main

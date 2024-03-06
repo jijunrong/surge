@@ -16,6 +16,7 @@ jobs:
       RECORD_NAME: ${{ secrets.RECORD_NAME }}
       ZONE_ID: ${{ secrets.ZONE_ID }}
       DOMAIN: ${{ secrets.DOMAIN }}
+      
       BLUE: "\e[34m\e[1m" 
       GREEN: "\e[32m\e[1m"
       RED: "\e[31m\e[1m"
@@ -26,6 +27,7 @@ jobs:
       GREENBG: "\e[43;42m\e[1m"
       REDBG: "\e[37;41m\e[1m"
       YELLOWBG: "\e[33m\e[1m\e[5m"
+      
       SCRIPT_DIR: "$GITHUB_WORKSPACE"
       BASH_FILE: "$GITHUB_WORKSPACE/cdn"
       RESULT_CSV: "$GITHUB_WORKSPACE/cdn/result.csv"
@@ -34,6 +36,8 @@ jobs:
       CloudflareST_LINE: "https://github.com/XIU2/CloudflareSpeedTest/releases/download/v2.2.5/CloudflareST_linux_amd64.tar.gz"
       downloaded_file: "$GITHUB_WORKSPACE/cdn/CloudflareST.tar.gz"
       CloudflareST_IP_LINE: "https://www.cloudflare.com/ips-v4"
+      TLL: "300"             # 域名 TTL值（1，为自动，按秒计算，常用设置为300秒）
+      NAME: "SURGE"          # 域名备注
     
     steps:
     - name: 检出 仓库
@@ -114,7 +118,7 @@ jobs:
              -H "X-Auth-Email: ${{ secrets.EMAIL }}" \
              -H "X-Auth-Key: ${{ secrets.API_KEY }}" \
              -H "Content-Type: application/json" \
-             --data "{\"type\":\"A\",\"name\":\"$RECORD_NAME\",\"content\":\"$CURRENT_IP\",\"ttl\":300,\"note\":\"ONESruge!\"}")
+             --data "{\"type\":\"A\",\"name\":\"$RECORD_NAME\",\"content\":\"$CURRENT_IP\",\"ttl\":$TTL,\"comment\":\"$NAME\"}")
 
         if [[ $UPDATE_RESULT == *"\"success\":true"* ]]; then
           echo -e "${GREEN}DNS记录已更新。新IP地址:$CURRENT_IP${GREEN}"

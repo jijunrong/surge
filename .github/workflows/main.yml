@@ -40,14 +40,14 @@ jobs:
     - name: 检出 仓库
       uses: actions/checkout@v4
 
-    - name: 设置 bash 环境
+    - name: 设置 环境
       run: |
         sudo apt-get update
         sudo apt-get install -y curl jq wget
         mkdir -p "$BASH_FILE"
         chmod -R 777 "$BASH_FILE"
 
-    - name: 获取 公网 IP
+    - name: 获取 公网
       run: |
           ipinfo=$(curl -s ipinfo.io)
           publicip=$(echo "$ipinfo" | jq -r '.ip')
@@ -62,7 +62,7 @@ jobs:
           exit 1
           fi
 
-    - name: 下载 IP 文件 
+    - name: 下载 IP
       run: |
         curl --connect-timeout 30 -o "$CloudflareST_IP_FILE" "$CloudflareST_IP_LINE" > /dev/null
         echo -e "${GREY}CloudflareST ip.txt 下载完成...${GREY}"
@@ -71,19 +71,19 @@ jobs:
         echo -e "${GREEN}已提取的IP地址已保存到 CloudflareST ip.txt 文件中。${GREEN}"
 
 
-    - name: 下载 CloudflareST 程序
+    - name: 下载 程序
       run: |
         wget --timeout=30 -O "$downloaded_file" "$CloudflareST_LINE" > /dev/null
         tar -xzf "$downloaded_file" -C "$SCRIPT_DIR/cdn" CloudflareST
         rm "$downloaded_file"
         chmod +x "$CloudflareST_FILE"
-        echo -e "${GREY}CloudflareST 下载,解压并赋予执行权限完成完成。${GREY}"
+        echo -e "${GREY}CloudflareST 下载,解压并赋予执行权限完成。${GREY}"
 
-    - name: 运行 CloudflareST 程序
+    - name: 运行 程序
       run: |
         $SCRIPT_DIR/cdn/CloudflareST -n 1000 -t 10 -tll 1 -tlr 0.2 -sl 15 -p 10 -tp 443 -url https://cdn.cloudflare.steamstatic.com/steam/apps/256843155/movie_max.mp4 -f "$SCRIPT_DIR/cdn/ip.txt" -o "$SCRIPT_DIR/cdn/result.csv" /dev/null
 
-    - name: 提取 优选IP信息
+    - name: 提取 信息
       run: |
         IP=$(cat $SCRIPT_DIR/cdn/result.csv | sed -n '2p' | egrep -o "([0-9]{1,3}\.){3}[0-9]{1,3}" | grep -wv 255)
         echo -e "${PURPLE}优选IP $IP${PURPLE}"
@@ -92,7 +92,7 @@ jobs:
         time=$(cat $SCRIPT_DIR/cdn/result.csv | cut -d , -f 5 | sed -n 2p)
         echo -e "${BLUE}网络延迟 $time ms${BLUE}"
 
-    - name: 推送 优选IP 信息到域名
+    - name: 推送 信息
       run: |
         DOMAIN=$(echo "$RECORD_NAME" | rev | cut -d"." -f1-2 | rev)
         ZONE_ID=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN&status=active" \
@@ -124,7 +124,7 @@ jobs:
           exit 1
         fi
 
-    - name: 清理 Cloudflare 缓存
+    - name: 清理 缓存
       run: |
         echo -e "${GREY}开始清理 Cloudflare 缓存...${GREY}"
 

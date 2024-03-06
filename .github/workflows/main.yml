@@ -84,7 +84,7 @@ jobs:
 
     - name: 运行 程序
       run: |
-        $SCRIPT_DIR/cdn/CloudflareST -n 1000 -t 10 -dn 20 -cfcolo HKG,NRT,FUK,OKA,KIX,SIN -tll 1 -tlr 0.2 -sl 15 -p 10 -tp 443 -url https://cdn.cloudflare.steamstatic.com/steam/apps/256843155/movie_max.mp4 -f "$SCRIPT_DIR/cdn/ip.txt" -o "$SCRIPT_DIR/cdn/result.csv" /dev/null
+        $SCRIPT_DIR/cdn/CloudflareST -n 1000 -dn 20 -cfcolo HKG,NRT,FUK,OKA,KIX,SIN -t 10 -tll 10 -tl 200 -tlr 0.2 -sl 25 -tp 443 -url https://cdn.cloudflare.steamstatic.com/steam/apps/256843155/movie_max.mp4 -f "$SCRIPT_DIR/cdn/ip.txt" -o "$SCRIPT_DIR/cdn/result.csv" /dev/null
 
     - name: 提取 信息
       run: |

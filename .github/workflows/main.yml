@@ -36,7 +36,7 @@ jobs:
       CloudflareST_LINE: "https://github.com/XIU2/CloudflareSpeedTest/releases/download/v2.2.5/CloudflareST_linux_amd64.tar.gz"
       downloaded_file: "$GITHUB_WORKSPACE/cdn/CloudflareST.tar.gz"
       CloudflareST_IP_LINE: "https://www.cloudflare.com/ips-v4"
-      TLL: "300"             # 域名 TTL值（1，为自动，按秒计算，常用设置为300秒）
+      TTL: "300"             # 域名 TTL值（1，为自动，按秒计算，常用设置为300秒）
       NAME: "SURGE"          # 域名备注
     
     steps:
